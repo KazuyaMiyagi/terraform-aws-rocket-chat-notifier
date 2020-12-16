@@ -1,99 +1,150 @@
+from datetime import datetime, timezone, timedelta
+from string import Template
+from pprint import pprint
+import json
 import os
 import urllib.request
-import json
-from datetime import datetime, timezone, timedelta
-from pprint import pprint
+
+
+ICONS = {
+    "sns": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/main/dist/ApplicationIntegration/SNS.png",
+    "codepipeline": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/main/dist/DeveloperTools/CodePipeline.png",
+    "codebuild": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/main/dist/DeveloperTools/CodeBuild.png",
+    "user": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/main/dist/General/User.png",
+}
+
+
+def subscribe_template(sns):
+    tpl = """${Message}
+    [Link](${SubscribeURL})"""
+    params = {
+        "Message": sns.get("Message"),
+        "SubscribeURL": sns.get("SubscribeURL"),
+    }
+    return {
+        "avatar": ICONS.get("sns"),
+        "text": Template(tpl).substitute(**params),
+    }
+
+
+def codepipeline_template(sns):
+    message = json.loads(sns.get("Message"))
+    tpl = """${detailType}
+    Pipeline: ${pipeline}
+    Stage: ${stage}
+    Action: ${action}
+    State: ${state}"""
+    params = {
+        "detailType": message.get("detailType"),
+        "pipeline": message.get("detail").get("pipeline"),
+        "stage": message.get("detail").get("stage"),
+        "action": message.get("detail").get("action"),
+        "state": message.get("detail").get("state"),
+    }
+    return {
+        "avatar": ICONS.get("codepipeline"),
+        "text": Template(tpl).substitute(**params),
+    }
+
+
+def codebuild_template(sns):
+    message = json.loads(sns.get("Message"))
+    tpl = """${detailType}
+    ProjectName: ${project_name}
+    BuildStatus: ${build_status}
+    CurrentPhase: ${current_phase}
+    Initiator: ${initiator}"""
+    params = {
+        "detailType": message.get("detailType"),
+        "project_name": message.get("detail").get("project-name"),
+        "build_status": message.get("detail").get("build-status"),
+        "current_phase": message.get("detail").get("current-phase"),
+        "initiator": message.get("detail").get("additional-information").get("initiator"),
+    }
+    return {
+        "avatar": ICONS.get("codebuild"),
+        "text": Template(tpl).substitute(**params),
+    }
+
+
+def approve_template(sns):
+    message = json.loads(sns.get("Message"))
+    jst = timezone(timedelta(hours=+9), 'JST')
+    expire = message.get('approval', {}).get('expires')
+    expire_jst = str(datetime.strptime(expire, '%Y-%m-%dT%H:%M%z').astimezone(jst))
+
+    tpl = """${Subject}
+    ${approvalReviewLink}
+    Expire: ${expire_jst}"""
+    params = {
+        "Subject": sns.get("Subject"),
+        "approvalReviewLink": message.get("approval").get("approvalReviewLink"),
+        "expire_jst": expire_jst,
+    }
+
+    return {
+        "avatar": ICONS.get("user"),
+        "text": Template(tpl).substitute(**params),
+    }
+
+
+def unknown_template(sns):
+    tpl = """Unknown message type.
+    ```
+    ${sns}
+    ```"""
+    params = {
+        "sns": sns,
+    }
+    return {
+        "text": Template(tpl).substitute(**params),
+    }
+
 
 def lambda_handler(event, context):
     try:
-        topic = event['Records'][0]['Sns']
+        for record in event.get("Records"):
+            sns = record.get("Sns")
 
-        post = {}
-        post["channel"] = os.environ.get('CHANNEL')
-        post["alias"] = "AWS Notification"
+            # AWS SNS Subscribe
+            if sns.get("Type") == "SubscriptionConfirmation":
+                body = subscribe_template(sns)
 
-        # Subscribe
-        if topic.get("Type") == "SubscriptionConfirmation":
-            post["icon_emoji"] = ":aws-sns:"
+            elif sns.get("Type") == "Notification":
 
-            post["text"] = """
-            [{message}]({link})
-            """.format(
-                message=topic.get("Message"),
-                link=topic.get("SubscribeURL"),
-            )
+                if sns.get("Subject") is None:
 
-        # Approve action
-        elif topic.get("Subject") != None:
-            post["icon_emoji"] = ":stop_sign:"
+                    source = json.loads(sns.get("Message")).get("source")
 
-            message = json.loads(topic.get('Message'))
-            expire = message.get('approval', {}).get('expires')
+                    # AWS CodePipeline
+                    if source == "aws.codepipeline":
+                        body = codepipeline_template(sns)
 
-            jst = timezone(timedelta(hours=+9), 'JST')
-            expire_jst = datetime.strptime(expire, '%Y-%m-%dT%H:%M%z').astimezone(jst)
+                    # AWS CodeBuild
+                    elif source == "aws.codebuild":
+                        body = codebuild_template(sns)
 
-            vst = timezone(timedelta(hours=+7), 'VST')
-            expire_vst = datetime.strptime(expire, '%Y-%m-%dT%H:%M%z').astimezone(vst)
+                # AWS CodePipeline approve action
+                elif sns.get("Subject") is not None:
+                    body = approve_template(sns)
 
-            post["text"] = """
-            [{message}]({link})
-            Expire(JST): {expire_jst}
-            Expire(VST): {expire_vst}
-            """.format(
-                message=topic.get("Subject"),
-                link=message.get("approval").get("approvalReviewLink"),
-                expire_jst=str(expire_jst),
-                expire_vst=str(expire_vst),
-            )
-
-        else:
-            message = json.loads(topic.get('Message'))
-            detail = message.get("detail")
-            # AWS CodePipeline
-            if message.get("source") == "aws.codepipeline":
-                post["icon_emoji"] = ":aws-code-pipeline:"
-
-                post["text"] = """
-                {title}
-                Pipeline: {pipeline}
-                Stage: {stage}
-                Action: {action}
-                State: {state}
-                """.format(
-                    title=message.get("detailType"),
-                    pipeline=detail.get("pipeline"),
-                    stage=detail.get("stage"),
-                    action=detail.get("action"),
-                    state=detail.get("state"),
-                )
-            # AWS CodeBuild
-            elif message.get("source") == "aws.codebuild":
-                post["icon_emoji"] = ":aws-code-build:"
-
-                post["text"] = """
-                {title}
-                ProjectName: {project_name}
-                BuildStatus: {build_status}
-                CurrentPhase: {current_phase}
-                Initiator: {initiator}
-                """.format(
-                    title=message.get("detailType"),
-                    project_name=detail.get("project-name"),
-                    build_status=detail.get("build-status"),
-                    current_phase=detail.get("current-phase"),
-                    initiator=detail.get("additional-information").get("initiator"),
-                )
             else:
-                post["text"] = topic
+                body = unknown_template(sns)
 
-        url = os.environ.get('WEBHOOK_URL')
-        headers = {
-            'Content-Type': 'application/json'
-        }
-        req = urllib.request.Request(url, json.dumps(post).encode(), headers)
-        with urllib.request.urlopen(req) as res:
-            body = res.read()
+            body.update({
+                "channel": os.environ.get('CHANNEL'),
+                "alias": "AWS Notification",
+            })
+
+            url = os.environ.get('WEBHOOK_URL')
+
+            header = {
+                'Content-Type': 'application/json'
+            }
+
+            req = urllib.request.Request(url, json.dumps(body).encode(), header)
+            urllib.request.urlopen(req)
+
     except Exception as e:
         pprint(e)
         pprint(event)
