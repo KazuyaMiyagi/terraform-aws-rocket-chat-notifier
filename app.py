@@ -205,7 +205,7 @@ def lambda_handler(event, context):
             elif sns.get("Type") == "Notification":
 
                 # AWS CodePipeline approve action
-                if "Subject" in sns:
+                if sns.get("Subject") is not None:
                     body.update(approve_template(sns))
 
                 else:
