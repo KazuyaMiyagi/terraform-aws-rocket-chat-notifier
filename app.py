@@ -53,6 +53,7 @@ def codecommit_template(sns):
     fields = [
         {"short": True, "title": "Event", "value": detail.get("event")},
         {"short": True, "title": "Repository Name", "value": repository},
+        {"short": True, "title": "Region", "value": message.get("region")},
     ]
 
     if detail.get("title") is not None:
@@ -93,6 +94,7 @@ def codebuild_template(sns):
                     {"short": True, "title": "Current phase", "value": detail.get("current-phase")},
                     {"short": True, "title": "Initiator", "value": additional_information.get("initiator")},
                     {"short": True, "title": "Version", "value": detail.get("version")},
+                    {"short": True, "title": "Region", "value": message.get("region")},
                 ],
             },
         ],
@@ -102,7 +104,6 @@ def codebuild_template(sns):
 def codedeploy_template(sns):
     message = json.loads(sns.get("Message"))
     detail = message.get("detail")
-    print(detail.keys())
     return {
         "avatar": ICONS.get("codedeploy"),
         "text": message.get("detailType"),
@@ -130,6 +131,7 @@ def codepipeline_template(sns):
         {"short": True, "title": "Pipeline", "value": detail.get("pipeline")},
         {"short": True, "title": "State", "value": detail.get("state")},
         {"short": True, "title": "Version", "value": detail.get("version")},
+        {"short": True, "title": "Region", "value": message.get("region")},
     ]
 
     if detail.get("action") is not None:
@@ -179,7 +181,8 @@ def approve_template(sns):
                     {"short": True, "title": "Expires",              "value": expire_jst},
                     {"short": True, "title": "External entity link", "value": external_link},
                     {"short": True, "title": "Approval review link", "value": approve_link},
-                 ],
+                    {"short": True, "title": "Region", "value": message.get("region")},
+                ],
             },
         ],
     }
