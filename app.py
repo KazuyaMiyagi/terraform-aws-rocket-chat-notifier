@@ -12,16 +12,20 @@ COLORS = {
     "FAILED": "red",
     "IN_PROGRESS": "black",
     "RESUMED": "orange",
+    "START": "black",
     "STARTED": "black",
     "STOPPED": "orange",
     "SUCCEEDED": "green",
+    "SUCCESS": "green",
 }
 
 ICONS = {
-    "sns": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/main/dist/ApplicationIntegration/SNS.png",
-    "codepipeline": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/main/dist/DeveloperTools/CodePipeline.png",
-    "codebuild": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/main/dist/DeveloperTools/CodeBuild.png",
-    "user": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/main/dist/General/User.png",
+    "sns": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v7.0/dist/ApplicationIntegration/SNS.png",
+    "codecommit": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v7.0/dist/DeveloperTools/CodeCommit.png",
+    "codebuild": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v7.0/dist/DeveloperTools/CodeBuild.png",
+    "codedeploy": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v7.0/dist/DeveloperTools/CodeDeploy.png",
+    "codepipeline": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v7.0/dist/DeveloperTools/CodePipeline.png",
+    "user": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v7.0/dist/General/User.png",
 }
 
 
@@ -35,29 +39,38 @@ def subscribe_template(sns):
                 "title": "Detail",
                 "fields": [
                     {"short": True, "title": "Subscribe url", "value": subscribe_link},
-                 ],
+                ],
             },
         ],
     }
 
 
-def codepipeline_template(sns):
+def codecommit_template(sns):
     message = json.loads(sns.get("Message"))
     detail = message.get("detail")
+    repository = detail.get("repositoryName") or ", ".join(detail.get("repositoryNames"))
+
+    fields = [
+        {"short": True, "title": "Event", "value": detail.get("event")},
+        {"short": True, "title": "Repository Name", "value": repository},
+    ]
+
+    if detail.get("title") is not None:
+        fields.append({"short": True, "title": "Title", "value": detail.get("title")})
+
+    if detail.get("author") is not None:
+        fields.append({"short": True, "title": "Author", "value": detail.get("author")})
+
+    if detail.get("notificationBody") is not None:
+        fields.append({"short": False, "title": "Notification body", "value": detail.get("notificationBody")})
+
     return {
-        "avatar": ICONS.get("codepipeline"),
+        "avatar": ICONS.get("codecommit"),
         "text": message.get("detailType"),
         "attachments": [
             {
                 "title": "Detail",
-                "color": COLORS.get(detail.get("state")),
-                "fields": [
-                    {"short": True, "title": "Pipeline", "value": detail.get("pipeline")},
-                    {"short": True, "title": "Stage",    "value": detail.get("stage")},
-                    {"short": True, "title": "Action",   "value": detail.get("action")},
-                    {"short": True, "title": "State",    "value": detail.get("state")},
-                    {"short": True, "title": "Version",  "value": detail.get("version")},
-                ],
+                "fields": fields,
             },
         ],
     }
@@ -75,12 +88,64 @@ def codebuild_template(sns):
                 "title": "Detail",
                 "color": COLORS.get(detail.get("build-status")),
                 "fields": [
-                    {"short": True, "title": "Project name",  "value": detail.get("project-name")},
-                    {"short": True, "title": "Build status",  "value": detail.get("build-status")},
+                    {"short": True, "title": "Project name", "value": detail.get("project-name")},
+                    {"short": True, "title": "Build status", "value": detail.get("build-status")},
                     {"short": True, "title": "Current phase", "value": detail.get("current-phase")},
-                    {"short": True, "title": "Initiator",     "value": additional_information.get("initiator")},
-                    {"short": True, "title": "Version",       "value": detail.get("version")},
+                    {"short": True, "title": "Initiator", "value": additional_information.get("initiator")},
+                    {"short": True, "title": "Version", "value": detail.get("version")},
                 ],
+            },
+        ],
+    }
+
+
+def codedeploy_template(sns):
+    message = json.loads(sns.get("Message"))
+    detail = message.get("detail")
+    print(detail.keys())
+    return {
+        "avatar": ICONS.get("codedeploy"),
+        "text": message.get("detailType"),
+        "attachments": [
+            {
+                "title": "Detail",
+                "color": COLORS.get(detail.get("state")),
+                "fields": [
+                    {"short": True, "title": "Application", "value": detail.get("application")},
+                    {"short": True, "title": "Deployment id", "value": detail.get("deploymentId")},
+                    {"short": True, "title": "Deployment group", "value": detail.get("deploymentGroup")},
+                    {"short": True, "title": "Instance gropu id", "value": detail.get("instanceGroupId")},
+                    {"short": True, "title": "State", "value": detail.get("state")},
+                    {"short": True, "title": "Region", "value": detail.get("region")},
+                ],
+            },
+        ],
+    }
+
+
+def codepipeline_template(sns):
+    message = json.loads(sns.get("Message"))
+    detail = message.get("detail")
+    fields = [
+        {"short": True, "title": "Pipeline", "value": detail.get("pipeline")},
+        {"short": True, "title": "State", "value": detail.get("state")},
+        {"short": True, "title": "Version", "value": detail.get("version")},
+    ]
+
+    if detail.get("action") is not None:
+        fields.append({"short": True, "title": "Action", "value": detail.get("action")})
+
+    if detail.get("stage") is not None:
+        fields.append({"short": True, "title": "Stage", "value": detail.get("stage")})
+
+    return {
+        "avatar": ICONS.get("codepipeline"),
+        "text": message.get("detailType"),
+        "attachments": [
+            {
+                "title": "Detail",
+                "color": COLORS.get(detail.get("state")),
+                "fields": fields,
             },
         ],
     }
@@ -123,39 +188,46 @@ def approve_template(sns):
 def lambda_handler(event, context):
     try:
         for record in event.get("Records"):
+            body = {
+                "channel": os.environ.get('CHANNEL'),
+                "alias": "AWS Notification",
+            }
+
             sns = record.get("Sns")
 
             # AWS SNS Subscribe
             if sns.get("Type") == "SubscriptionConfirmation":
-                body = subscribe_template(sns)
+                body.update(subscribe_template(sns))
 
             elif sns.get("Type") == "Notification":
 
-                if sns.get("Subject") is None:
+                # AWS CodePipeline approve action
+                if "Subject" in sns:
+                    body.update(approve_template(sns))
 
+                else:
                     source = json.loads(sns.get("Message")).get("source")
 
-                    # AWS CodePipeline
-                    if source == "aws.codepipeline":
-                        body = codepipeline_template(sns)
+                    # AWS CodeCommit
+                    if source == "aws.codecommit":
+                        body.update(codecommit_template(sns))
 
                     # AWS CodeBuild
                     elif source == "aws.codebuild":
-                        body = codebuild_template(sns)
+                        body.update(codebuild_template(sns))
 
-                # AWS CodePipeline approve action
-                elif sns.get("Subject") is not None:
-                    body = approve_template(sns)
+                    # AWS CodeDeploy
+                    elif source == "aws.codedeploy":
+                        body.update(codedeploy_template(sns))
 
-                else:
-                    raise ValueError("Unknown message type.", sns)
+                    # AWS CodePipeline
+                    elif source == "aws.codepipeline":
+                        body.update(codepipeline_template(sns))
+
+                    else:
+                        raise ValueError("Unknown message type.", sns)
             else:
                 raise ValueError("Unknown message type.", sns)
-
-            body.update({
-                "channel": os.environ.get('CHANNEL'),
-                "alias": "AWS Notification",
-            })
 
             url = os.environ.get('WEBHOOK_URL')
 
