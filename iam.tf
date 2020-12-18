@@ -1,5 +1,5 @@
 resource "aws_iam_role" "lambda" {
-  name               = "RocketChatNotifierRole"
+  name               = "RocketChatNotifierRole-${random_id.main.hex}"
   path               = "/service-role/"
   assume_role_policy = data.aws_iam_policy_document.lambda.json
 }
@@ -26,7 +26,7 @@ resource "aws_iam_role_policy_attachment" "lambda_attached_policy" {
 }
 
 resource "aws_iam_policy" "lambda_policy" {
-  name   = "RocketChatNotifierPolicy"
+  name   = "RocketChatNotifierPolicy-${random_id.main.hex}"
   policy = data.aws_iam_policy_document.lambda_policy.json
 }
 
