@@ -1,10 +1,21 @@
 from datetime import datetime, timezone, timedelta
-from string import Template
-from pprint import pprint
 import json
+import logging
 import os
+import traceback
 import urllib.request
 
+logger = logging.getLogger()
+
+COLORS = {
+    "CANCELED": "orange",
+    "FAILED": "red",
+    "IN_PROGRESS": "black",
+    "RESUMED": "orange",
+    "STARTED": "black",
+    "STOPPED": "orange",
+    "SUCCEEDED": "green",
+}
 
 ICONS = {
     "sns": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/main/dist/ApplicationIntegration/SNS.png",
@@ -15,89 +26,97 @@ ICONS = {
 
 
 def subscribe_template(sns):
-    tpl = """${Message}
-    [Link](${SubscribeURL})"""
-    params = {
-        "Message": sns.get("Message"),
-        "SubscribeURL": sns.get("SubscribeURL"),
-    }
+    subscribe_link = "[Link](%s)" % (sns.get("SubscribeURL"))
     return {
         "avatar": ICONS.get("sns"),
-        "text": Template(tpl).substitute(**params),
+        "text": sns.get("Message"),
+        "attachments": [
+            {
+                "title": "Detail",
+                "fields": [
+                    {"short": True, "title": "Subscribe url", "value": subscribe_link},
+                 ],
+            },
+        ],
     }
 
 
 def codepipeline_template(sns):
     message = json.loads(sns.get("Message"))
-    tpl = """${detailType}
-    Pipeline: ${pipeline}
-    Stage: ${stage}
-    Action: ${action}
-    State: ${state}"""
-    params = {
-        "detailType": message.get("detailType"),
-        "pipeline": message.get("detail").get("pipeline"),
-        "stage": message.get("detail").get("stage"),
-        "action": message.get("detail").get("action"),
-        "state": message.get("detail").get("state"),
-    }
+    detail = message.get("detail")
     return {
         "avatar": ICONS.get("codepipeline"),
-        "text": Template(tpl).substitute(**params),
+        "text": message.get("detailType"),
+        "attachments": [
+            {
+                "title": "Detail",
+                "color": COLORS.get(detail.get("state")),
+                "fields": [
+                    {"short": True, "title": "Pipeline", "value": detail.get("pipeline")},
+                    {"short": True, "title": "Stage",    "value": detail.get("stage")},
+                    {"short": True, "title": "Action",   "value": detail.get("action")},
+                    {"short": True, "title": "State",    "value": detail.get("state")},
+                    {"short": True, "title": "Version",  "value": detail.get("version")},
+                ],
+            },
+        ],
     }
 
 
 def codebuild_template(sns):
     message = json.loads(sns.get("Message"))
-    tpl = """${detailType}
-    ProjectName: ${project_name}
-    BuildStatus: ${build_status}
-    CurrentPhase: ${current_phase}
-    Initiator: ${initiator}"""
-    params = {
-        "detailType": message.get("detailType"),
-        "project_name": message.get("detail").get("project-name"),
-        "build_status": message.get("detail").get("build-status"),
-        "current_phase": message.get("detail").get("current-phase"),
-        "initiator": message.get("detail").get("additional-information").get("initiator"),
-    }
+    detail = message.get("detail")
+    additional_information = detail.get("additional-information")
     return {
         "avatar": ICONS.get("codebuild"),
-        "text": Template(tpl).substitute(**params),
+        "text": message.get("detailType"),
+        "attachments": [
+            {
+                "title": "Detail",
+                "color": COLORS.get(detail.get("build-status")),
+                "fields": [
+                    {"short": True, "title": "Project name",  "value": detail.get("project-name")},
+                    {"short": True, "title": "Build status",  "value": detail.get("build-status")},
+                    {"short": True, "title": "Current phase", "value": detail.get("current-phase")},
+                    {"short": True, "title": "Initiator",     "value": additional_information.get("initiator")},
+                    {"short": True, "title": "Version",       "value": detail.get("version")},
+                ],
+            },
+        ],
     }
 
 
 def approve_template(sns):
     message = json.loads(sns.get("Message"))
+    approval = message.get("approval")
+
     jst = timezone(timedelta(hours=+9), 'JST')
     expire = message.get('approval', {}).get('expires')
     expire_jst = str(datetime.strptime(expire, '%Y-%m-%dT%H:%M%z').astimezone(jst))
 
-    tpl = """${Subject}
-    ${approvalReviewLink}
-    Expire: ${expire_jst}"""
-    params = {
-        "Subject": sns.get("Subject"),
-        "approvalReviewLink": message.get("approval").get("approvalReviewLink"),
-        "expire_jst": expire_jst,
-    }
+    if approval.get("externalEntityLink") is None:
+        external_link = None
+    else:
+        external_link = "[Link](%s)" % (approval.get("externalEntityLink"))
+
+    approve_link = "[Link](%s)" % (approval.get("approvalReviewLink"))
 
     return {
         "avatar": ICONS.get("user"),
-        "text": Template(tpl).substitute(**params),
-    }
-
-
-def unknown_template(sns):
-    tpl = """Unknown message type.
-    ```
-    ${sns}
-    ```"""
-    params = {
-        "sns": sns,
-    }
-    return {
-        "text": Template(tpl).substitute(**params),
+        "text": sns.get("Subject"),
+        "attachments": [
+            {
+                "title": "Detail",
+                "fields": [
+                    {"short": True, "title": "Pipeline name",        "value": approval.get("piplineName")},
+                    {"short": True, "title": "Stage name",           "value": approval.get("stageName")},
+                    {"short": True, "title": "Action name",          "value": approval.get("actionName")},
+                    {"short": True, "title": "Expires",              "value": expire_jst},
+                    {"short": True, "title": "External entity link", "value": external_link},
+                    {"short": True, "title": "Approval review link", "value": approve_link},
+                 ],
+            },
+        ],
     }
 
 
@@ -128,8 +147,10 @@ def lambda_handler(event, context):
                 elif sns.get("Subject") is not None:
                     body = approve_template(sns)
 
+                else:
+                    raise ValueError("Unknown message type.", sns)
             else:
-                body = unknown_template(sns)
+                raise ValueError("Unknown message type.", sns)
 
             body.update({
                 "channel": os.environ.get('CHANNEL'),
@@ -145,7 +166,7 @@ def lambda_handler(event, context):
             req = urllib.request.Request(url, json.dumps(body).encode(), header)
             urllib.request.urlopen(req)
 
-    except Exception as e:
-        pprint(e)
-        pprint(event)
-        pprint(context)
+    except ValueError:
+        raise
+    except Exception:
+        logger.error({"event": event, "traceback": traceback.format_exc()})
