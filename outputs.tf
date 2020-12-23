@@ -1,3 +1,3 @@
-output "rocket_chat_notifier_topic_arn" {
-  value = aws_sns_topic.main.arn
+output "sns_topic" {
+  value = aws_sns_topic.main
 }

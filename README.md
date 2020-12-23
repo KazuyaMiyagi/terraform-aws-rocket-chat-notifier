@@ -45,9 +45,9 @@ Inputs
 Outputs
 ----------------------------------------------------------------------------------------------------
 
-| Name                               | Description                        |
-|------------------------------------|------------------------------------|
-| rocket\_chat\_notifier\_topic\_arn | rocket-chat-notifier sns topic arn |
+| Name       | Description              |
+|------------|--------------------------|
+| sns\_topic | rocket-chat-notifier sns |
 
 
 License
