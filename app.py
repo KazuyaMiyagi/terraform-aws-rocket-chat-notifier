@@ -175,7 +175,7 @@ def approve_template(sns):
             {
                 "title": "Detail",
                 "fields": [
-                    {"short": True, "title": "Pipeline name",        "value": approval.get("piplineName")},
+                    {"short": True, "title": "Pipeline name",        "value": approval.get("pipelineName")},
                     {"short": True, "title": "Stage name",           "value": approval.get("stageName")},
                     {"short": True, "title": "Action name",          "value": approval.get("actionName")},
                     {"short": True, "title": "Expires",              "value": expire_jst},
