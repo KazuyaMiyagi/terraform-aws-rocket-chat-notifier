@@ -7,8 +7,11 @@ data "aws_iam_policy_document" "main" {
     actions = ["sns:Publish"]
 
     principals {
-      type        = "Service"
-      identifiers = ["codestar-notifications.amazonaws.com"]
+      type = "Service"
+      identifiers = [
+        "codestar-notifications.amazonaws.com",
+        "ses.amazonaws.com",
+      ]
     }
 
     resources = [aws_sns_topic.main.arn]

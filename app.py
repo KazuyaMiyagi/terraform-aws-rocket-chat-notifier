@@ -20,12 +20,13 @@ COLORS = {
 }
 
 ICONS = {
-    "sns": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v7.0/dist/ApplicationIntegration/SNS.png",
-    "codecommit": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v7.0/dist/DeveloperTools/CodeCommit.png",
-    "codebuild": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v7.0/dist/DeveloperTools/CodeBuild.png",
-    "codedeploy": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v7.0/dist/DeveloperTools/CodeDeploy.png",
-    "codepipeline": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v7.0/dist/DeveloperTools/CodePipeline.png",
-    "user": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v7.0/dist/General/User.png",
+    "sns": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v10.0/dist/ApplicationIntegration/SimpleNotificationService.png",
+    "ses": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v10.0/dist/BusinessApplications/SimpleEmailService.png",
+    "codecommit": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v10.0/dist/DeveloperTools/CodeCommit.png",
+    "codebuild": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v10.0/dist/DeveloperTools/CodeBuild.png",
+    "codedeploy": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v10.0/dist/DeveloperTools/CodeDeploy.png",
+    "codepipeline": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v10.0/dist/DeveloperTools/CodePipeline.png",
+    "user": "https://raw.githubusercontent.com/awslabs/aws-icons-for-plantuml/v10.0/dist/General/User.png",
 }
 
 
@@ -175,15 +176,173 @@ def approve_template(sns):
             {
                 "title": "Detail",
                 "fields": [
-                    {"short": True, "title": "Pipeline name",        "value": approval.get("pipelineName")},
-                    {"short": True, "title": "Stage name",           "value": approval.get("stageName")},
-                    {"short": True, "title": "Action name",          "value": approval.get("actionName")},
-                    {"short": True, "title": "Expires",              "value": expire_jst},
+                    {"short": True, "title": "Pipeline name", "value": approval.get("pipelineName")},
+                    {"short": True, "title": "Stage name", "value": approval.get("stageName")},
+                    {"short": True, "title": "Action name", "value": approval.get("actionName")},
+                    {"short": True, "title": "Expires", "value": expire_jst},
                     {"short": True, "title": "External entity link", "value": external_link},
                     {"short": True, "title": "Approval review link", "value": approve_link},
                     {"short": True, "title": "Region", "value": message.get("region")},
                 ],
             },
+        ],
+    }
+
+
+def bounce_template(sns):
+    message = json.loads(sns.get("Message"))
+    mail = message.get("mail")
+
+    mail_attachment = {
+        "title": "Mail info",
+        "collapsed": True,
+        "fields": [
+            {"short": False, "title": "Timestamp", "value": mail.get("timestamp")},
+            {"short": False, "title": "MessageId", "value": mail.get("messageId")},
+            {"short": False, "title": "Source", "value": mail.get("source")},
+            {"short": False, "title": "SourceArn", "value": mail.get("sourceArn")},
+            {"short": False, "title": "SourceIp", "value": mail.get("sourceIp")},
+            {"short": False, "title": "SendingAccountId", "value": mail.get("sendingAccountId")},
+            {"short": False, "title": "HeadersTruncated", "value": mail.get("headersTruncated")},
+        ],
+    }
+
+    for index, destination in enumerate(mail.get("destination")):
+        mail_attachment.get("fields").append({"short": False, "title": "Destination[%s]" % index, "value": destination})
+
+    if mail.get("headersTruncated") is False:
+        for header in mail.get("headers"):
+            mail_attachment.get("fields").append({"short": False, "title": header.get("name"), "value": header.get("value")})
+
+    bounce = message.get("bounce")
+    bounce_attachment = {
+        "title": "Bounce info",
+        "fields": [
+            {"short": False, "title": "BounceType", "value": bounce.get("bounceType")},
+            {"short": False, "title": "BounceSubType", "value": bounce.get("bounceSubType")},
+            {"short": False, "title": "Timestamp", "value": bounce.get("timestamp")},
+            {"short": False, "title": "FeedbackId", "value": bounce.get("feedbackId")},
+        ],
+    }
+
+    for index, bounced_recipient in enumerate(bounce.get("bouncedRecipients")):
+        for key, value in bounced_recipient.items():
+            bounce_attachment.get("fields").append({"short": False, "title": "BouncedRecipients[%s][%s]" % (index, key), "value": value})
+
+    return {
+        "avatar": ICONS.get("ses"),
+        "text": message.get("notificationType"),
+        "attachments": [
+            mail_attachment,
+            bounce_attachment,
+        ],
+    }
+
+
+def complaint_template(sns):
+    message = json.loads(sns.get("Message"))
+    mail = message.get("mail")
+
+    mail_attachment = {
+        "title": "Mail info",
+        "collapsed": True,
+        "fields": [
+            {"short": False, "title": "Timestamp", "value": mail.get("timestamp")},
+            {"short": False, "title": "MessageId", "value": mail.get("messageId")},
+            {"short": False, "title": "Source", "value": mail.get("source")},
+            {"short": False, "title": "SourceArn", "value": mail.get("sourceArn")},
+            {"short": False, "title": "SourceIp", "value": mail.get("sourceIp")},
+            {"short": False, "title": "SendingAccountId", "value": mail.get("sendingAccountId")},
+            {"short": False, "title": "HeadersTruncated", "value": mail.get("headersTruncated")},
+        ],
+    }
+
+    for index, destination in enumerate(mail.get("destination")):
+        mail_attachment.get("fields").append({"short": False, "title": "Destination[%s]" % index, "value": destination})
+
+    if mail.get("headersTruncated") is False:
+        for header in mail.get("headers"):
+            mail_attachment.get("fields").append({"short": False, "title": header.get("name"), "value": header.get("value")})
+
+    complaint = message.get("complaint")
+    complaint_attachment = {
+        "title": "Complaint info",
+        "fields": [
+            {"short": False, "title": "Timestamp", "value": complaint.get("timestamp")},
+            {"short": False, "title": "FeedbackId", "value": complaint.get("feedbackId")},
+            {"short": False, "title": "ComplaintSubType", "value": complaint.get("complaintSubType")},
+        ],
+    }
+
+    for index, complained_recipient in enumerate(complaint.get("complainedRecipients")):
+        for key, value in complained_recipient.items():
+            complaint_attachment.get("fields").append({"short": False, "title": "ComplainedRecipient[%s][%s]" % (index, key), "value": value})
+
+    if complaint.get("userAgent") is not None:
+        complaint_attachment.get("fields").append({"short": False, "title": "UserAgent", "value": complaint.get("userAgent")})
+
+    if complaint.get("complaintFeedbackType") is not None:
+        complaint_attachment.get("fields").append({"short": False, "title": "ComplaintFeedbackType", "value": complaint.get("complaintFeedbackType")})
+
+    if complaint.get("arrivalDate") is not None:
+        complaint_attachment.get("fields").append({"short": False, "title": "ArrivalDate", "value": complaint.get("arrivalDate")})
+
+    return {
+        "avatar": ICONS.get("ses"),
+        "text": message.get("notificationType"),
+        "attachments": [
+            mail_attachment,
+            complaint_attachment,
+        ],
+    }
+
+
+def delivery_template(sns):
+    message = json.loads(sns.get("Message"))
+    mail = message.get("mail")
+
+    mail_attachment = {
+        "title": "Mail info",
+        "collapsed": True,
+        "fields": [
+            {"short": False, "title": "Timestamp", "value": mail.get("timestamp")},
+            {"short": False, "title": "MessageId", "value": mail.get("messageId")},
+            {"short": False, "title": "Source", "value": mail.get("source")},
+            {"short": False, "title": "SourceArn", "value": mail.get("sourceArn")},
+            {"short": False, "title": "SourceIp", "value": mail.get("sourceIp")},
+            {"short": False, "title": "SendingAccountId", "value": mail.get("sendingAccountId")},
+            {"short": False, "title": "HeadersTruncated", "value": mail.get("headersTruncated")},
+        ],
+    }
+
+    for index, destination in enumerate(mail.get("destination")):
+        mail_attachment.get("fields").append({"short": False, "title": "Destination[%s]" % index, "value": destination})
+
+    if mail.get("headersTruncated") is False:
+        for header in mail.get("headers"):
+            mail_attachment.get("fields").append({"short": False, "title": header.get("name"), "value": header.get("value")})
+
+    delivery = message.get("delivery")
+    delivery_attachment = {
+        "title": "Delivery info",
+        "fields": [
+            {"short": False, "title": "Timestamp", "value": delivery.get("timestamp")},
+            {"short": False, "title": "ProcessingTimeMillis", "value": delivery.get("processingTimeMillis")},
+            {"short": False, "title": "SmtpResponse", "value": delivery.get("smtpResponse")},
+            {"short": False, "title": "ReportingMTA", "value": delivery.get("reportingMTA")},
+            {"short": False, "title": "RemoteMtaIp", "value": delivery.get("remoteMtaIp")},
+        ],
+    }
+
+    for index, recipient in enumerate(delivery.get("recipients")):
+        delivery_attachment.get("fields").append({"short": False, "title": "Recipient[%s]" % index, "value": recipient})
+
+    return {
+        "avatar": ICONS.get("ses"),
+        "text": message.get("notificationType"),
+        "attachments": [
+            mail_attachment,
+            delivery_attachment,
         ],
     }
 
@@ -209,24 +368,46 @@ def lambda_handler(event, context):
                     body.update(approve_template(sns))
 
                 else:
-                    source = json.loads(sns.get("Message")).get("source")
+                    message = json.loads(sns.get("Message"))
+                    if message.get("source") is not None:
+                        source = message.get("source")
 
-                    # AWS CodeCommit
-                    if source == "aws.codecommit":
-                        body.update(codecommit_template(sns))
+                        # AWS CodeCommit
+                        if source == "aws.codecommit":
+                            body.update(codecommit_template(sns))
 
-                    # AWS CodeBuild
-                    elif source == "aws.codebuild":
-                        body.update(codebuild_template(sns))
+                        # AWS CodeBuild
+                        elif source == "aws.codebuild":
+                            body.update(codebuild_template(sns))
 
-                    # AWS CodeDeploy
-                    elif source == "aws.codedeploy":
-                        body.update(codedeploy_template(sns))
+                            # AWS CodeDeploy
+                        elif source == "aws.codedeploy":
+                            body.update(codedeploy_template(sns))
 
-                    # AWS CodePipeline
-                    elif source == "aws.codepipeline":
-                        body.update(codepipeline_template(sns))
+                            # AWS CodePipeline
+                        elif source == "aws.codepipeline":
+                            body.update(codepipeline_template(sns))
 
+                        else:
+                            raise ValueError("Unknown message type.", sns)
+
+                    elif message.get("notificationType") is not None:
+                        notification_type = message.get("notificationType")
+
+                        # Amazon SES Bounce
+                        if notification_type == "Bounce":
+                            body.update(bounce_template(sns))
+
+                        # Amazon SES Complaint
+                        elif notification_type == "Complaint":
+                            body.update(complaint_template(sns))
+
+                            # Amazon SES Delivery
+                        elif notification_type == "Delivery":
+                            body.update(delivery_template(sns))
+
+                        else:
+                            raise ValueError("Unknown message type.", sns)
                     else:
                         raise ValueError("Unknown message type.", sns)
             else:

@@ -17,7 +17,7 @@ module "rocket_chat_notifier" {
 Examples
 ----------------------------------------------------------------------------------------------------
 
-* [Simple](https://github.com/KazuyaMiyagi/terraform-aws-rocket-chat-notifier/tree/master/examples/simple)
+* [Simple](https://github.com/KazuyaMiyagi/terraform-aws-rocket-chat-notifier/tree/main/examples/simple)
 
 Requirements
 ----------------------------------------------------------------------------------------------------
