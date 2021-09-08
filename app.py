@@ -229,6 +229,12 @@ def bounce_template(sns):
         for key, value in bounced_recipient.items():
             bounce_attachment.get("fields").append({"short": False, "title": "BouncedRecipients[%s][%s]" % (index, key), "value": value})
 
+    if bounce.get("remoteMtaIp") is not None:
+        bounce_attachment.get("fields").append({"short": False, "title": "RemoteMtaIp", "value": bounce.get("remoteMtaIp")})
+
+    if bounce.get("reportingMTA") is not None:
+        bounce_attachment.get("fields").append({"short": False, "title": "ReportingMTA", "value": bounce.get("reportingMTA")})
+
     return {
         "avatar": ICONS.get("ses"),
         "text": message.get("notificationType"),
@@ -276,7 +282,7 @@ def complaint_template(sns):
 
     for index, complained_recipient in enumerate(complaint.get("complainedRecipients")):
         for key, value in complained_recipient.items():
-            complaint_attachment.get("fields").append({"short": False, "title": "ComplainedRecipient[%s][%s]" % (index, key), "value": value})
+            complaint_attachment.get("fields").append({"short": False, "title": "ComplainedRecipients[%s][%s]" % (index, key), "value": value})
 
     if complaint.get("userAgent") is not None:
         complaint_attachment.get("fields").append({"short": False, "title": "UserAgent", "value": complaint.get("userAgent")})
@@ -335,7 +341,7 @@ def delivery_template(sns):
     }
 
     for index, recipient in enumerate(delivery.get("recipients")):
-        delivery_attachment.get("fields").append({"short": False, "title": "Recipient[%s]" % index, "value": recipient})
+        delivery_attachment.get("fields").append({"short": False, "title": "Recipients[%s]" % index, "value": recipient})
 
     return {
         "avatar": ICONS.get("ses"),
